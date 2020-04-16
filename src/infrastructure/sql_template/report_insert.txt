@@ -1,0 +1,4 @@
+# coding: utf-8
+insert
+into basic_info(person, date_of_occured, date_of_discoverd, summary, detail)
+values('${person}', ${date_of_occured}, ${date_of_discoverd}, ${summary}, detail)

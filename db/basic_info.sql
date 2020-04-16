@@ -1,0 +1,11 @@
+CREATE TABLE basic_info
+ (
+ id NUMBER GENERATED ALWAYS AS IDENTITY,
+ person VARCHAR(20) NOT NULL,
+ date_of_occured DATE NOT NULL,
+ date_of_discoverd DATE NOT NULL,
+ summary NVARCHAR2(600) NOT NULL,
+ detail NVARCHAR2(2000),
+
+ CONSTRAINT p_key PRIMARY KEY(id)
+ );
