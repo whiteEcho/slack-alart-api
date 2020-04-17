@@ -1,28 +1,23 @@
 # coding: utf-8
 
-import cx_Oracle as co
+from datetime import datetime
 import json
 import os
-from datetime import datetime
+
+import cx_Oracle as co
+
 from .resource.report import Report
+from . import db_config as conf
 
 os.environ['NLS_LANG'] = 'JAPANESE_JAPAN.AL32UTF8'
 
 
-class HiyariClass:
-    host = '127.0.0.1'
-    port = 1521
-    service = "orcl"
-    user = "dev"
-    password = "dev"
-
-    def __init__(self):
-        pass
+class HClient:
 
     def list_func(self):
         connect = self.__create_connect()
         cursor = connect.cursor()
-        cursor.execute('select id,summary from basic_info order by id')
+        cursor.execute('select id,summary from h_info order by id')
 
         rows = cursor.fetchall()
 
@@ -40,16 +35,16 @@ class HiyariClass:
     def detail_func(self, h_id):
         connect = self.__create_connect()
         cursor = connect.cursor()
-        cursor.execute('select * from basic_info where id=:id', id=h_id)
+        cursor.execute('select * from h_info where id=:id', id=h_id)
 
         rows = cursor.fetchall()
         row = {
             'id': rows[0][0],
-            'person': rows[0][1],
-            'date_of_occurred': rows[0][2],
+            'reporter': rows[0][1],
+            'date_of_occurred': rows[0][2] if rows[0][2] else '---',
             'date_of_discovered': rows[0][3],
             'summary': rows[0][4],
-            'detail': rows[0][5]
+            'detail': rows[0][5] if rows[0][5] else '---'
         }
 
         return json.dumps(row, default=self.__time_formatter)
@@ -58,12 +53,12 @@ class HiyariClass:
         connect = self.__create_connect()
         cursor = connect.cursor()
         sql = '''insert 
-        into basic_info(person, date_of_occured, date_of_discoverd, summary, detail) 
-        values(:person, :occured, :discovred, :summary, :detail)'''
+        into h_info(reporter, date_of_occurred, date_of_discovered, summary, detail, created_at, updated_at) 
+        values(:reporter, :occurred, :discovered, :summary, :detail, systimestamp, systimestamp)'''
         cursor.execute(sql,
-                       person=report.person,
-                       occured=report.date_of_occurred,
-                       discovred=report.date_of_discovered,
+                       reporter=report.reporter,
+                       occurred=report.date_of_occurred,
+                       discovered=report.date_of_discovered,
                        summary=report.summary,
                        detail=report.detail
                        )
@@ -74,17 +69,18 @@ class HiyariClass:
     def update_func(self, h_id, report: Report):
         connect = self.__create_connect()
         cursor = connect.cursor()
-        sql = '''update basic_info
+        sql = '''update h_info
         set
-        person=:person,
-        date_of_occured=:occurred,
-        date_of_discoverd=:discovered,
+        reporter=:reporter,
+        date_of_occurred=:occurred,
+        date_of_discovered=:discovered,
         summary=:summary,
-        detail=:detail
+        detail=:detail,
+        updated_at=systimestamp
         where
         id=:id'''
         cursor.execute(sql,
-                       person=report.person,
+                       reporter=report.reporter,
                        occurred=report.date_of_occurred,
                        discovered=report.date_of_discovered,
                        summary=report.summary,
@@ -97,20 +93,20 @@ class HiyariClass:
         connect = self.__create_connect()
         cursor = connect.cursor()
         cursor.execute(
-            'select id,person,summary from basic_info where id=(select max(id) from basic_info)')
+            'select id,reporter,summary from h_info where id=(select max(id) from h_info)')
 
         rows = cursor.fetchall()
         row = {
             'id': rows[0][0],
-            'person': rows[0][1],
+            'reporter': rows[0][1],
             'summary': rows[0][2]
         }
         return json.dumps(row)
 
-    @classmethod
-    def __create_connect(cls):
-        tns = co.makedsn(cls.host, cls.port, cls.service)
-        connect = co.connect(user=cls.user, password=cls.password, dsn=tns, encoding='utf-8')
+    @staticmethod
+    def __create_connect():
+        tns = co.makedsn(conf.HOST, conf.PORT, conf.SERVICE)
+        connect = co.connect(user=conf.DB_USER, password=conf.DB_PASS, dsn=tns, encoding='utf-8')
 
         return connect
 
