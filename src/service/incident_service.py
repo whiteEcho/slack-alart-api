@@ -1,11 +1,8 @@
 # encode: utf-8
 
-import hashlib
-import os
-import requests
-from openpyxl import load_workbook
-
 from infrastructure.db_client import IClient
+from openpyxl import load_workbook
+from werkzeug.exceptions import BadRequest
 
 
 class IncidentService:
@@ -36,7 +33,15 @@ class IncidentService:
         client.update_func(i_id, category, summary, self.file_name, self.file_path)
         workbook.close()
 
-    @staticmethod
-    def __get_cell(worksheet):
+    def __get_cell(self, worksheet):
         # インシデント種別と概要の取得
-        return worksheet['E4'].value, worksheet['E12'].value
+        category, summary = worksheet['E4'].value, worksheet['E12'].value
+
+        if category and summary:
+            return category, self.__get_summary(summary)
+        else:
+            raise BadRequest
+
+    @staticmethod
+    def __get_summary(summary):
+        return summary if len(summary) <= 30 else summary[:28] + '…'

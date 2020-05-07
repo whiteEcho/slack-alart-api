@@ -1,22 +1,20 @@
 # coding: utf-8
 
 import codecs
-from datetime import datetime
 import json
 import os
 
-import cx_Oracle as co
-
+from . import client_util as util
 from .resource.report import Report
-from . import db_config as conf
 
 os.environ['NLS_LANG'] = 'JAPANESE_JAPAN.AL32UTF8'
 
 
 class HClient:
 
-    def list_func(self):
-        connect = self.__create_connect()
+    @staticmethod
+    def list_func():
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute('select id,summary from h_info order by id')
 
@@ -33,8 +31,9 @@ class HClient:
 
         return json.dumps({'response': response})
 
-    def detail_func(self, h_id):
-        connect = self.__create_connect()
+    @staticmethod
+    def detail_func(h_id):
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute('select * from h_info where id=:id', id=h_id)
 
@@ -48,10 +47,10 @@ class HClient:
             'detail': rows[0][5] if rows[0][5] else '---'
         }
 
-        return json.dumps(row, default=self.__time_formatter)
+        return json.dumps(row, default=util.time_formatter)
 
     def report_func(self, report: Report):
-        connect = self.__create_connect()
+        connect = util.create_connect()
         cursor = connect.cursor()
         sql = '''insert 
         into h_info(reporter, date_of_occurred, date_of_discovered, summary, detail, created_at, updated_at) 
@@ -68,7 +67,7 @@ class HClient:
         return self.__insert_select()
 
     def update_func(self, h_id, report: Report):
-        connect = self.__create_connect()
+        connect = util.create_connect()
         cursor = connect.cursor()
         sql = '''update h_info
         set
@@ -90,8 +89,9 @@ class HClient:
         connect.commit()
         return self.detail_func(h_id)
 
-    def __insert_select(self):
-        connect = self.__create_connect()
+    @staticmethod
+    def __insert_select():
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute(
             'select id,reporter,summary from h_info where id=(select max(id) from h_info)')
@@ -104,23 +104,12 @@ class HClient:
         }
         return json.dumps(row)
 
-    @staticmethod
-    def __create_connect():
-        tns = co.makedsn(conf.HOST, conf.PORT, conf.SERVICE)
-        connect = co.connect(user=conf.DB_USER, password=conf.DB_PASS, dsn=tns, encoding='utf-8')
-
-        return connect
-
-    @staticmethod
-    def __time_formatter(obj):
-        if isinstance(obj, datetime):
-            return obj.strftime("%Y/%m/%d")
-
 
 class IClient:
 
-    def list_func(self):
-        connect = self.__create_connect()
+    @staticmethod
+    def list_func():
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute('select id,category,summary,create_at from i_info')
         rows = cursor.fetchall()
@@ -136,17 +125,18 @@ class IClient:
 
             results.append(result)
 
-        return json.dumps({'response': results}, default=self.__time_formatter)
+        return json.dumps({'response': results}, default=util.time_formatter)
 
-    def detail_func(self, i_id):
-        connect = self.__create_connect()
+    @staticmethod
+    def detail_func(i_id):
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute('select org_file_name, report from i_info where id=:id', id=i_id)
         row = cursor.fetchall()[0]
         return row[0], row[1].read()
 
     def report_func(self, category, summary, file_name, file_path):
-        connect = self.__create_connect()
+        connect = util.create_connect()
         cursor = connect.cursor()
         sql = '''insert
         into i_info(category, summary, report, org_file_name ,create_at, update_at)
@@ -162,8 +152,9 @@ class IClient:
 
         return {'id': self.__insert_select()}
 
-    def update_func(self, i_id, category, summary, file_name, file_path):
-        connect = self.__create_connect()
+    @staticmethod
+    def update_func(i_id, category, summary, file_name, file_path):
+        connect = util.create_connect()
         cursor = connect.cursor()
         sql = '''update i_info
         set
@@ -184,20 +175,9 @@ class IClient:
                            i_id=i_id)
             connect.commit()
 
-    def __insert_select(self):
-        connect = self.__create_connect()
+    @staticmethod
+    def __insert_select():
+        connect = util.create_connect()
         cursor = connect.cursor()
         cursor.execute('select max(id) from i_info')
-        return cursor.fetchall()[0]
-
-    @staticmethod
-    def __create_connect():
-        tns = co.makedsn(conf.HOST, conf.PORT, conf.SERVICE)
-        connect = co.connect(user=conf.DB_USER, password=conf.DB_PASS, dsn=tns, encoding='utf-8')
-
-        return connect
-
-    @staticmethod
-    def __time_formatter(obj):
-        if isinstance(obj, datetime):
-            return obj.strftime("%Y/%m/%d")
+        return cursor.fetchall()[0][0]

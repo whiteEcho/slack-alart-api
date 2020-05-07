@@ -4,18 +4,22 @@ import codecs
 import hashlib
 import json
 import os
+import logging
 
-from werkzeug.exceptions import BadRequest
-from werkzeug.exceptions import NotFound
-from werkzeug.exceptions import InternalServerError
 from flask import Flask
-from flask import request
 from flask import make_response
-
-from service.incident_service import IncidentService
+from flask import request
 from infrastructure.db_client import HClient
 from infrastructure.db_client import IClient
 from infrastructure.resource.report import Report
+from service.incident_service import IncidentService
+from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import InternalServerError
+from werkzeug.exceptions import NotFound
+
+formatter = '%(levelname)s : %(asctime)s : %(message)s'
+date_fmt = '%Y-%m-%d %H:%M:%S'
+logging.basicConfig(format=formatter, datefmt=date_fmt)
 
 app = Flask(__name__)
 
@@ -48,7 +52,7 @@ def detail(h_id=None):
 
 @app.route('/hiyari/<h_id>', methods=['PUT'])
 def update(h_id=None):
-    form = json.loads(json.loads(request.file_name))
+    form = json.loads(request.get_json())
     report = Report(
         form["reporter"],
         form['date_of_occurred'],
@@ -77,11 +81,10 @@ def incident_add():
             f.write(data)
         service = IncidentService(file_name, file_path)
         result = service.add()
+        return result
     finally:
         if os.path.isfile(file_path):
             os.remove(file_path)
-
-    return result
 
 
 @app.route('/incident/<i_id>', methods=['GET'])
@@ -117,27 +120,30 @@ def incident_update(i_id=None):
 def error_404(e):
     error = {
         'code': '001',
-        'message': 'not found'
+        'message': 'Not Found.'
     }
-    return error, 404
+    logging.warning(e.description)
+    return error, e.code
 
 
 @app.errorhandler(BadRequest)
 def error_400(e):
     error = {
         'code': '002',
-        'message': 'bad request!'
+        'message': 'Bad Request.'
     }
-    return error, 400
+    logging.warning(e.description)
+    return error, e.code
 
 
 @app.errorhandler(InternalServerError)
 def error_500(e):
     error = {
         'code': '999',
-        'message': 'internal server error'
+        'message': 'Internal Server Error.'
     }
-    return error, 500
+    logging.error(e.description)
+    return error, e.code
 
 
 if __name__ == "__main__":
